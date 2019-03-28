@@ -15,6 +15,9 @@ data Lift = Lift { liftName :: String, liftSets :: NonEmpty Set }
 (%:) :: String -> NonEmpty Set -> Lift
 name %: lifts = Lift name lifts
 
+(#:) :: Day -> NonEmpty Lift -> Session
+(#:) = flip Session
+
 (*:) :: Set -> Int -> NonEmpty Set
 (*:) w i = w :| replicate (i-1) w
 
@@ -45,6 +48,14 @@ instance (a ~ Int, b ~ Int) => Num (() -> a -> () -> b -> NonEmpty Set) where
     signum = undefined
     negate = undefined
 
+instance (a ~ Int, b ~ Int) => Num (a -> b -> Day) where
+    fromInteger y m d = fromGregorian y m d
+    (+) = undefined
+    (*) = undefined
+    abs = undefined
+    signum = undefined
+    negate = undefined
+
 foo :: Set
 foo = 60 x 5
 
@@ -60,16 +71,16 @@ data Set = Set
 
 data Session = Session
     { sessionLifts :: NonEmpty Lift
-    , sessionDate :: Maybe Day
+    , sessionDate :: Day
     -- ^ If the date is 'Nothing', then this is a planned workout and not
     -- one that has actually occurred yet.
     }
 
+data Entry = Entry Day (Either Bodyweight Session)
+
+type History = NonEmpty Entry
+
 newtype Bodyweight = Bodyweight { unBodyweight :: Weight }
-
-type History = NonEmpty Session
-
-type Program = NonEmpty Session -> Session
 
 greyskullStep :: Set -> Set
 greyskullStep (Set weight reps) =
@@ -99,97 +110,8 @@ wilksFormula bw (Weight total) = (total *) $
     f = -1.291E-08
     Bodyweight (Weight x) = bw
 
-firstSession :: Session
-firstSession = Session
-    { sessionLifts =
-        [bench, squat, rows, dbPress]
-    , sessionDate =
-        Nothing
-    }
-  where
-    barx5 = Set (Weight 45) (Reps 5)
-    sets = barx5 :| replicate 2 barx5
-    squat = Lift
-        { liftName = "Squat"
-        , liftSets = sets
-        }
-    bench = Lift
-        { liftName = "Bench Press"
-        , liftSets = sets
-        }
-    rows = Lift
-        { liftName = "DB Row"
-        , liftSets =
-            let s = Set (Weight 45) (Reps 12)
-             in s :| replicate 3 s
-        }
-    dbPress = Lift
-        { liftName = "DB Press"
-        , liftSets =
-            let s = Set (Weight 25) (Reps 12)
-             in s :| replicate 3 s
-        }
-
-secondSession :: Session
-secondSession = Session
-    { sessionLifts =
-        press :| [deadlift, curls]
-    , sessionDate =
-        Nothing
-    }
-  where
-    barx5 = Set (Weight 45) (Reps 5)
-    sets = barx5 :| replicate 2 barx5
-    deadlift = Lift
-        { liftName = "Deadlift"
-        , liftSets = sets
-        }
-    press = Lift
-        { liftName = "Press"
-        , liftSets = sets
-        }
-    curls = Lift
-        { liftName = "DB Curl"
-        , liftSets =
-            let s = Set (Weight 25) (Reps 12)
-             in s :| replicate 3 s
-        }
-
-history :: NonEmpty Session
-history =
-    [ Session
-        { sessionDate = Just (fromGregorian 2019 03 17)
-        , sessionLifts =
-            [ squat %:
-                135 x 5 x 3
-            , bench press %:
-                [ 115 x 5
-                , 115 x 5
-                , 115 x 12
-                ]
-            , db row %:
-                60 x 12 x 4
-            ]
-        }
-    , Session
-        { sessionDate = Just (fromGregorian 2019 03 19)
-        , sessionLifts =
-            [ press %:
-                65 x 5 x 2
-                <>
-                65 x 12 x 1
-            , deadlift %:
-                155 x 5 x 3
-            , db curl %:
-                30 x 12 x 4
-            ]
-        }
-    ]
-
 dateLifts :: NonEmpty Session -> Map Day (NonEmpty Lift)
-dateLifts = foldr (\s -> case sessionDate s of
-    Nothing -> id
-    Just d -> Map.insert d (sessionLifts s)) Map.empty
+dateLifts = foldr (\s -> Map.insert (sessionDate s) (sessionLifts s)) Map.empty
 
 -- | Property:
 --
@@ -209,7 +131,7 @@ bestSet = id
 --
 findLast :: String -> NonEmpty Session -> Maybe Session
 findLast lift = id
-    . fmap (\(a, b) -> Session b (Just a))
+    . fmap (\(a, b) -> Session b a)
     . Map.lookupMax
     . onlyLiftsOf lift
     . dateLifts
@@ -231,12 +153,14 @@ currentWilks sess bw =
     mdl = findLast deadlift sess
     mbp = findLast (bench press) sess
 
-squat, press, row, deadlift, curl :: String
+squat, press, row, deadlift, curl, reverseHyper, latPull :: String
 squat = "Squat"
 press = "Press"
 row = "Row"
 deadlift = "Deadlift"
 curl = "Curl"
+reverseHyper = "Reverse Hyper"
+latPull = "Lat Pull"
 
 pf :: String -> String -> String
 pf i a = (i ++ " " ++ a)
