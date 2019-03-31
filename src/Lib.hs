@@ -125,7 +125,7 @@ onlyLiftsOf str = Map.mapMaybe (NEL.nonEmpty . NEL.filter p) . Map.filter (any p
 bestSet :: NonEmpty Set -> Set
 bestSet = id
     . head
-    . List.sortOn (\set -> e1rm set)
+    . List.sortOn e1rm
     . NEL.toList
 
 --
@@ -171,19 +171,5 @@ db = pf "DB "
 romanian = pf "Romanian "
 
 e1rm :: Set -> Double
-e1rm (Set (Weight w) (Reps i)) = factor * w
-  where
-    factor = case i of
-        1 -> 1
-        2 -> 0.95
-        3 -> 0.93
-        4 -> 0.9
-        5 -> 0.87
-        6 -> 0.85
-        7 -> 0.83
-        8 -> 0.80
-        9 -> 0.77
-        10 -> 0.75
-        11 -> 0.73
-        12 -> 0.70
-        _ -> 0.68
+e1rm (Set (Weight w) (Reps i)) =
+    (100 * w) / (101.3 - (2.67123 * fromIntegral i))

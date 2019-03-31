@@ -14,7 +14,28 @@ import qualified Data.List as List
 
 history :: NonEmpty Session
 history =
-    [ 2019 03 27 #:
+    [ 2019 03 30 #:
+        [ press %:
+            95 x 5 x 2
+            <>
+            [ 95 x 8
+            , 105 x 3
+            , 115 x 3
+            , 125 x 1
+            , 135 x 1
+            ]
+        , squat %:
+            [ 150 x 5
+            , 165 x 5
+            , 185 x 5
+            , 205 x 5
+            , 225 x 5
+            ]
+        , db curl %:
+            20 x 15 x 4
+        ]
+
+    , 2019 03 27 #:
         [ bench press %:
             125 x 5 x 2
             <>
@@ -37,6 +58,7 @@ history =
             , 100 x 10
             ]
         ]
+
     , 2019 03 25 #:
         [ squat %:
             145 x 5 x 2
