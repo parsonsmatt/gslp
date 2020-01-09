@@ -11,10 +11,92 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.Time (Day, fromGregorian)
 import qualified Data.List as List
 
-
 history :: NonEmpty Session
 history =
-    [ 2019 03 30 #:
+    [ 2019 05 07 #:
+        [ bench press %:
+            155 x 5 x 5
+        , deadlift %:
+            [ 225 x 5
+            , 275 x 3
+            ] <>
+            315 x 1 x 3
+        , db rows %:
+            45 x 12 x 6
+        ]
+    , 2019 04 15 #:
+        [ press %:
+            100 x 5 x 5
+        , deadlift %:
+            225 x 5 x 3
+        , bb curl %:
+            45 x 20 x 4
+        ]
+
+    , 2019 04 11 #:
+        [ bench press %:
+            [ 155 x 5
+            , 165 x 3
+            , 175 x 2
+            , 185 x 1
+            , 195 x 1
+            , 205 x 1
+            , 185 x 3
+            , 155 x 5
+            , 155 x 5
+            , 155 x 5
+            , 135 x 10
+            ]
+        , squat %:
+            [ 155 x 5
+            , 185 x 3
+            , 195 x 1
+            , 205 x 1
+            , 215 x 1
+            , 225 x 1
+            , 235 x 1
+            ]
+        , bb curls %:
+            45 x 15 x 3
+        ]
+
+    , 2019 04 08 #:
+        [ press %:
+            100 x 5 x 3
+            <>
+            [ 115 x 3
+            , 125 x 3
+            , 135 x 2
+            , 115 x 3
+            , 95 x 5
+            ]
+        , deadlift %:
+            [ 135 x 5
+            , 185 x 5
+            , 225 x 5
+            , 245 x 2
+            , 265 x 2
+            , 275 x 1
+            , 295 x 1
+            , 315 x 1
+            ]
+        , bb curls %:
+            45 x 20 x 3
+
+    , 2019 04 01 #:
+        [ bench press %:
+            [ 135 x 5
+            , 145 x 5
+            , 155 x 5
+            ] <> 165 x 5 x 3 <>
+            [ 155 x 5
+            , 135 x 5
+            ]
+        , squat %:
+            185 x 5 x 3
+        ]
+
+    , 2019 03 30 #:
         [ press %:
             95 x 5 x 2
             <>
