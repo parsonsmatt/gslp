@@ -1,4 +1,7 @@
 module Main where
 
+import APRE
+
 main :: IO ()
-main = pure ()
+main = do
+    todaysLifting

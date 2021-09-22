@@ -9,6 +9,7 @@ import qualified Data.List.NonEmpty as NEL
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Time (Day, fromGregorian)
 import qualified Data.List as List
+import Database.Persist.Sql
 
 data Lift = Lift { liftName :: String, liftSets :: NonEmpty Set }
 
@@ -60,14 +61,16 @@ foo :: Set
 foo = 60 x 5
 
 newtype Reps = Reps { unReps :: Int }
-    deriving (Eq, Ord)
+    deriving newtype (Eq, Ord, Show, PersistField, PersistFieldSql)
 
 newtype Weight = Weight { weightAmount :: Double }
+    deriving newtype (Eq, Show, Ord, Num, Real, Fractional, RealFrac, PersistField, PersistFieldSql)
 
 data Set = Set
     { setWeight :: Weight
     , setReps :: Reps
     }
+    deriving Show
 
 data Session = Session
     { sessionLifts :: NonEmpty Lift
@@ -161,6 +164,10 @@ deadlift = "Deadlift"
 curl = "Curl"
 reverseHyper = "Reverse Hyper"
 latPull = "Lat Pull"
+
+roundTo :: RealFrac a => a -> a -> a
+roundTo increment amount =
+    increment * fromInteger (floor (amount / increment))
 
 pf :: String -> String -> String
 pf i a = (i ++ " " ++ a)

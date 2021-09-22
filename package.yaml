@@ -23,14 +23,23 @@ dependencies:
 - base >= 4.7 && < 5
 - time
 - containers
-- Chart
-- Chart-cairo
+- persistent
+- persistent-sqlite
+- text
+- monad-logger
+
+default-extensions:
+  - GeneralizedNewtypeDeriving
+  - DerivingStrategies
+  - TypeApplications
+  - OverloadedStrings
+  - RecordWildCards
 
 library:
   source-dirs: src
 
 executables:
-  gslp-exe:
+  apre:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
