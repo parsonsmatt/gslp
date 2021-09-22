@@ -67,14 +67,6 @@ todaysLifting = do
                 lift
             , DB.apreSessionDate =
                 today
-            , DB.apreSessionWarmupOneReps =
-                setReps warmup1
-            , DB.apreSessionWarmupOneWeight =
-                setWeight warmup1
-            , DB.apreSessionWarmupTwoReps =
-                setReps warmup2
-            , DB.apreSessionWarmupTwoWeight =
-                setWeight warmup2
             , DB.apreSessionSetOneReps =
                 setReps set1Reps
             , DB.apreSessionSetOneWeight =

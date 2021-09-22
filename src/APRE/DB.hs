@@ -21,10 +21,6 @@ ApreSession
     lift                String
     date                Day
     whichRm             Int
-    warmupOneReps       Reps
-    warmupOneWeight     Weight
-    warmupTwoReps       Reps
-    warmupTwoWeight     Weight
     setOneReps          Reps
     setOneWeight        Weight
     setTwoReps          Reps
@@ -33,4 +29,4 @@ ApreSession
 |]
 
 migrate :: SqlPersistT IO ()
-migrate = runMigration $ migrateModels [entityDef (Proxy @ApreSession)]
+migrate = runMigrationUnsafe $ migrateModels [entityDef (Proxy @ApreSession)]
