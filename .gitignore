@@ -2,3 +2,5 @@
 gslp.cabal
 *~
 *.png
+*shm
+*wal
