@@ -2,6 +2,9 @@
 -- and adjust reps from there.
 module APRE where
 
+import Prelude hiding (log)
+
+import qualified Data.List as List
 import Lib hiding (lift)
 import Data.Time
 import Database.Persist.Sqlite
@@ -9,7 +12,8 @@ import Control.Monad.Logger
 import Control.Monad.IO.Class
 import qualified APRE.DB as DB
 import System.IO
-import Text.Read
+import Text.Read (readMaybe)
+import Data.Foldable (for_)
 
 todaysLifting :: IO ()
 todaysLifting = do
@@ -22,10 +26,43 @@ todaysLifting = do
                 runSqlConn q conn
         runDb DB.migrate
 
-        lift <- promptStr ["What lift are you doing?"]
-        log ["Finding last session for <<", lift, ">> . . ."]
+        log ["Welcome to today's APRE session. Fetching exercises . . ."]
+        exercises <- runDb $ selectList [] []
+        let options = zip [1 :: Int ..] exercises
+        log ["Options: "]
+        for_ options $ \(idx, Entity _ option) -> do
+            log ["\t", show idx, ". ", DB.exerciseName option]
+        log ["What lift are you doing?"]
+        log ["(select a number to choose an above lift, or input text to provide a new one)"]
 
-        sessions <- runDb $ selectList [DB.ApreSessionLift ==. lift] [Desc DB.ApreSessionDate, LimitTo 1]
+        liftStr <-
+            promptStr
+                [ "(# or name): "
+                ]
+
+        exercise <-
+            case readMaybe liftStr of
+                Nothing -> do
+                    i <- Weight <$> prompt ["What increment do you want to use for this exercise?"]
+                    runDb $ insertEntity DB.Exercise
+                        { exerciseName = liftStr
+                        , exerciseIncrement = i
+                        }
+
+                Just i ->
+                    case List.lookup i options of
+                        Nothing ->
+                            error "Failed to find exericse of that number."
+                        Just a ->
+                            pure a
+
+        let lift = DB.exerciseName (entityVal exercise)
+
+        sessions <-
+            runDb $
+                selectList
+                    [DB.ApreSessionExerciseId ==. entityKey exercise]
+                    [Desc DB.ApreSessionDate, LimitTo 1]
 
         currentPlan <-
             case sessions of
@@ -33,7 +70,8 @@ todaysLifting = do
                     log ["No sessions found for <<", lift, ">>. Starting a new lifting history."]
                     whichRm <- prompt ["What target RM are you hitting? (3, 6, 10)"]
                     startWeight <- prompt ["What weight do you want to start with?"]
-                    pure $ mkSessionPlan whichRm (Weight startWeight)
+                    increment <- Weight <$> prompt ["What step increment do you want? (2.5 for upper, 5 for lower)"]
+                    pure $ mkSessionPlan increment whichRm (Weight startWeight)
                 (Entity _ prevSession : _) -> do
                     log ["Found a session from ", show (DB.apreSessionDate prevSession)]
                     let
@@ -43,6 +81,8 @@ todaysLifting = do
                             DB.apreSessionSetTwoWeight prevSession
                         whichRm =
                             DB.apreSessionWhichRm prevSession
+                        increment =
+                            DB.exerciseIncrement $ entityVal exercise
                     log
                         [ "You finished with "
                         , show prevReps
@@ -50,21 +90,21 @@ todaysLifting = do
                         , show prevWeight
                         , " pounds. Nice!"
                         ]
-                    pure $ mkSessionPlan whichRm (nextMainSet whichRm prevWeight prevReps)
+                    pure $ mkSessionPlan increment whichRm (nextMainSet increment whichRm prevWeight prevReps)
 
         apreSession <- runPlanInteractive currentPlan
 
         today <- localDay . zonedTimeToLocalTime <$> getZonedTime
         _ <- runDb $ insert $
-            mkDbSessionFor lift today apreSession
+            mkDbSessionFor exercise today apreSession
 
         log ["Great job!"]
 
   where
     mkDbSessionFor lift today ApreSession { plan = ApreSessionPlan {..}, ..} =
         DB.ApreSession
-            { DB.apreSessionLift =
-                lift
+            { DB.apreSessionExerciseId =
+                entityKey lift
             , DB.apreSessionDate =
                 today
             , DB.apreSessionSetOneReps =
@@ -99,6 +139,26 @@ todaysLifting = do
     withDb action =
         runNoLoggingT $ withSqliteConn "apre.sqlite3" $ \conn -> liftIO $ action conn
 
+progressionGeneric
+    :: (Ord a, Num a)
+    => a
+    -- ^ The weight increment to use per rep
+    -> a
+    -- ^ The target rep amount
+    -> a
+    -- ^ The number of reps accomplished
+    -> a
+    -- ^ The weight accomplished
+    -> a
+    -- ^ The weight for the next main set
+progressionGeneric increment target repsAccomplished thisWeight =
+    thisWeight + modification
+  where
+    modification =
+        repDelta * increment
+    repDelta =
+        repsAccomplished - target
+
 progression3rm :: (Ord a, Num a) => a -> a -> a
 progression3rm reps
     | reps == 3 || reps == 4 =
@@ -126,24 +186,20 @@ data ApreSessionPlan = ApreSessionPlan
     , warmup2 :: Set
     , set1  :: Weight
     , apreWhichRm :: Int
+    , apreIncrement :: Weight
     }
     deriving Show
 
 apreSessionFinalSet :: ApreSessionPlan -> Reps -> Weight
 apreSessionFinalSet apreSessionPlan reps =
-    nextMainSet (apreWhichRm apreSessionPlan) (set1 apreSessionPlan) reps
+    nextMainSet (apreIncrement apreSessionPlan) (apreWhichRm apreSessionPlan) (set1 apreSessionPlan) reps
 
-nextMainSet :: Int -> Weight -> Reps -> Weight
-nextMainSet whichRm weight (Reps reps) =
+nextMainSet :: Weight -> Int -> Weight -> Reps -> Weight
+nextMainSet increment whichRm weight (Reps reps) =
     roundTo 2.5 $ progression (fromIntegral reps) weight
   where
-    progression :: (Ord a, Num a) => a -> a -> a
     progression =
-        case whichRm of
-            3 -> progression3rm
-            6 -> progression6rm
-            10 -> progression10rm
-            _ -> error "asdf"
+        progressionGeneric (increment) (fromIntegral whichRm)
 
 data ApreSession = ApreSession
     { plan :: ApreSessionPlan
@@ -154,8 +210,10 @@ data ApreSession = ApreSession
 
 nextPlan :: ApreSession -> ApreSessionPlan
 nextPlan apreSession =
-    mkSessionPlan whichRm (nextMainSet whichRm (setWeight finalSet) (setReps finalSet))
+    mkSessionPlan incr whichRm $
+        nextMainSet incr whichRm (setWeight finalSet) (setReps finalSet)
   where
+    incr = apreIncrement $ plan apreSession
     whichRm = apreWhichRm plan'
     plan' = plan apreSession
     finalSet = set2Reps apreSession
@@ -200,10 +258,11 @@ runPlan apreSessionPlan reps1 reps2 =
         }
 
 mkSessionPlan
-    :: Int
+    :: Weight
+    -> Int
     -> Weight
     -> ApreSessionPlan
-mkSessionPlan whichRm prevRm =
+mkSessionPlan incr whichRm prevRm =
     ApreSessionPlan
         { warmup1 =
             Set
@@ -223,4 +282,6 @@ mkSessionPlan whichRm prevRm =
             prevRm
         , apreWhichRm =
             whichRm
+        , apreIncrement =
+            incr
         }
