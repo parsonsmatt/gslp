@@ -30,8 +30,24 @@ todaysLifting = do
         exercises <- runDb $ selectList [] []
         let options = zip [1 :: Int ..] exercises
         log ["Options: "]
-        for_ options $ \(idx, Entity _ option) -> do
-            log ["\t", show idx, ". ", DB.exerciseName option]
+        for_ options $ \(idx, Entity optionKey option) -> do
+            mlastSession <-
+                runDb $ selectFirst
+                    [ DB.ApreSessionExerciseId ==. optionKey
+                    ]
+                    [ Desc DB.ApreSessionDate
+                    ]
+            let
+                lastSessionDate =
+                    fmap (DB.apreSessionDate . entityVal) mlastSession
+                renderedDate =
+                    case lastSessionDate of
+                        Nothing ->
+                            "(no sessions recorded)"
+                        Just day ->
+                            "(" <> show day <> ")"
+
+            log ["\t", show idx, ". ", DB.exerciseName option, "\t", renderedDate]
         log ["What lift are you doing?"]
         log ["(select a number to choose an above lift, or input text to provide a new one)"]
 
