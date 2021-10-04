@@ -42,12 +42,16 @@ todaysLifting = do
 
         exercise <-
             case readMaybe liftStr of
-                Nothing -> do
-                    i <- Weight <$> prompt ["What increment do you want to use for this exercise?"]
-                    runDb $ insertEntity DB.Exercise
-                        { exerciseName = liftStr
-                        , exerciseIncrement = i
-                        }
+                Nothing ->
+                    case List.find (\(_, Entity _ e) -> liftStr == DB.exerciseName e) options of
+                        Nothing -> do
+                            i <- Weight <$> prompt ["What increment do you want to use for this exercise?"]
+                            runDb $ insertEntity DB.Exercise
+                                { exerciseName = liftStr
+                                , exerciseIncrement = i
+                                }
+                        Just (_, a) ->
+                            pure a
 
                 Just i ->
                     case List.lookup i options of
